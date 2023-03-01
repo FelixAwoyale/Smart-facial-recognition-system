@@ -1,39 +1,49 @@
 import os
-# from sqlalchemy import Column, String, Integer, create_engine, LargeBinary
-# from flask_sqlalchemy import SQLAlchemy
-from mongoalchemy import MongoAlchemy,fields
+from sqlalchemy import Column, String, Integer, JSON
+from flask_sqlalchemy import SQLAlchemy
+# from mongoalchemy import MongoAlchemy,fields
 import json
+from settings import database_name, database_password, database_user
 
 
-database_path =''
+database_path = 'postgresql://{}:{}@{}/{}'.format(database_user, database_password,'localhost:5432', database_name)
 
-db = MongoAlchemy()
+db = SQLAlchemy()
 
-def setup_db(app, mongo_uri):
+def setup_db(app, database_path=database_path):
     # app.config["SQLALCHEMY_DATABASE_URI"] = database_path
     # app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["MONGOALCHEMY_CONNECTION_STRING"] = mongo_uri
-    app.config["MONGOALCHEMY_SERVER"] = 'localhost'
-    app.config["MONGOALCHEMY_PORT"] = 27017
-    app.config["MONGOALCHEMY_DATABASE"] = 'mydatabase'
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_path
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db.app = app
     db.init_app(app)
-    db.create_all()
+    with app.app_context():
+        # create the database tables
+        db.create_all()
+    
+
+    # app.config["MONGOALCHEMY_CONNECTION_STRING"] = mongo_uri
+    # app.config["MONGOALCHEMY_SERVER"] = 'localhost'
+    # app.config["MONGOALCHEMY_PORT"] = 27017
+    # app.config["MONGOALCHEMY_DATABASE"] = 'mydatabase'
+    # db.app = app
+    # db.init_app(app)
+    # db.create_all()
 
 
-class Students(db.Document):
+class Students(db.Model):
     __tablename__ = 'students'
 
-    id = fields.IntField( primary_key=True)
-    firstname = fields.StringField(required=True)
-    lastname = fields.StringField(required=True)
-    email= fields.StringField(required=True)
-    matricno =fields.StringField(required=True)
-    level = fields.StringField(required=True)
-    password =fields.StringField(required=True)
-    encodings = fields.ListField()
+    id = Column(Integer, primary_key=True)
+    firstname = Column(String, nullable=False)
+    lastname = Column(String, nullable=False)
+    email = Column(String, nullable=False)
+    matricno = Column(String, nullable=False)
+    level = Column(String, nullable=False)
+    password = Column(String, nullable=False)
+    encodings = Column(JSON, nullable=True)
 
-    def __init__(self, firstname, lastname, email, matricno, level, password, id, encodings) :
+    def __init__(self, firstname, lastname, email, matricno, level, password, encodings=None, id=None) :
         self.id = id
         self.firstname=firstname
         self.lastname=lastname
@@ -41,17 +51,28 @@ class Students(db.Document):
         self.matricno=matricno
         self.level=level
         self.password = password
-        self.encodings = encodings
+        self.encodings = dict(encodings) if encodings else None
 
-    def insert(self):
-        self.save(self)
+    # def insert(self):
+    #     self.save(self)
         
 
-    # def update(self):
-    #     db.session.()
+    # # def update(self):
+    # #     db.session.()
     
+    # def delete(self):
+    #     self.remove(self)
+
+    def insert(self):
+        db.session.add(self)
+        db.session.commit()
+
+    def update(self):
+        db.session.commit()
+
     def delete(self):
-        self.remove(self)
+        db.session.delete(self)
+        db.session.commit()
     
     
     def format(self):
@@ -67,16 +88,16 @@ class Students(db.Document):
         }
 
 
-class Lecturer(db.Document):
+class Lecturer(db.Model):
     __tablename__ = 'lecturer'
 
-    id = fields.IntField( primary_key=True)
-    firstname = fields.StringField(required=True)
-    lastname = fields.StringField(required=True)
-    email= fields.StringField(required=True)
-    password =fields.StringField(required=True)
+    id = Column(Integer, primary_key=True)
+    firstname = Column(String, nullable=False)
+    lastname = Column(String, nullable=False)
+    email = Column(String, nullable=False)
+    password = Column(String, nullable=False)
 
-    def __init__(self, firstname, lastname, email, matricno, level, password, id) :
+    def __init__(self, firstname, lastname, email, password, id) :
         self.id = id
         self.firstname=firstname
         self.lastname=lastname
@@ -84,13 +105,8 @@ class Lecturer(db.Document):
         self.password = password
 
     def insert(self):
-       self.save
-
-    def update(self):
-        self.save
-    
-    def delete(self):
-        self.remove
+        db.session.add(self)
+        db.session.commit()
     
     def format(self):
         return{
@@ -101,3 +117,4 @@ class Lecturer(db.Document):
             'password':self.password,
           
         }
+
