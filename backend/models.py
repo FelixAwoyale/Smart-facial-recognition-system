@@ -97,7 +97,7 @@ class Lecturer(db.Model):
     email = Column(String, nullable=False)
     password = Column(String, nullable=False)
 
-    def __init__(self, firstname, lastname, email, password, id) :
+    def __init__(self, firstname, lastname, email, password, id=None) :
         self.id = id
         self.firstname=firstname
         self.lastname=lastname
