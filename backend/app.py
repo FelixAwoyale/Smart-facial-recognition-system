@@ -86,6 +86,7 @@ def create_app(test_config=None):
          except Exception as e:
               print(e)
               abort(422)
+        
 
 
     @app.route('/student/login', methods=['POST'])
@@ -114,6 +115,35 @@ def create_app(test_config=None):
               
          else:
               return jsonify(message="Invalid email or password"), 401
+         
+    @app.route('/lecturer/login', methods=['POST'])
+    def Lecturerlogin():
+         body = request.get_json()
+
+         new_email = body.get('email')
+         new_password = body.get('password')
+
+         lecturer = Lecturer.query.filter_by(email=new_email).first()
+
+         if lecturer is None:
+              return jsonify(message="User does not exist or email is invalid"), 401
+         
+         if pbkdf2_sha256.verify(new_password, lecturer.password):
+            payload = {
+              'email': new_email,
+              'id':lecturer.id,
+              'exp': datetime.utcnow() + timedelta(minutes=30)  # token expires in 30 minutes
+          }
+            token = jwt.encode(payload, 'secret_key', algorithm='HS256')
+            return jsonify({
+              'message': 'success',
+              'token': token
+                })
+              
+         else:
+              return jsonify(message="Invalid email or password"), 401
+         
+
          
     @app.route('/student/create_encodings/<int:id>', methods=['PATCH'])
     def create_encodings(id):
