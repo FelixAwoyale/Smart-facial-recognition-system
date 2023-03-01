@@ -1,5 +1,5 @@
 from flask import Flask, request, abort, jsonify
-from models import Students, setup_db
+from models import Students, setup_db, Lecturer
 from flask_cors import CORS
 from passlib.hash import pbkdf2_sha256
 import jwt
@@ -62,6 +62,31 @@ def create_app(test_config=None):
         except Exception as e:
             print(e)
             abort(422)
+
+    @app.route('/lecturer/register', methods=['POST'])
+    def create_lecturer():
+         body=request.get_json()
+         new_firstname = body.get('firstname', None)
+         new_lastname = body.get('lastname', None)
+         new_email = body.get('email', None)
+         new_password = body.get('password', None)
+
+         existing_lecturer = Lecturer.query.filter_by(email=new_email).first()
+         if existing_lecturer is not None:
+            return jsonify(message="A user with this email already exists"), 409
+         hashed_password = pbkdf2_sha256.hash(new_password)
+
+         try:
+              lecturer = Lecturer(firstname=new_firstname, lastname=new_lastname, email=new_email, password=hashed_password)
+              lecturer.insert()
+
+              return jsonify({"success":True,
+                "created": Lecturer.id,
+                "Total Students": len(Lecturer.query.all())})
+         except Exception as e:
+              print(e)
+              abort(422)
+
 
     @app.route('/student/login', methods=['POST'])
     def Studentlogin():
