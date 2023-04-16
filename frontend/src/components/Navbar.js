@@ -1,11 +1,20 @@
-import { Typography, Container, styled, Box, Stack } from "@mui/material";
-import { NavLink } from "react-router-dom";
+import {
+  Typography,
+  Container,
+  styled,
+  Box,
+  Stack,
+  Button,
+} from "@mui/material";
+import { NavLink, useNavigate } from "react-router-dom";
 import React from "react";
+import { useAuth } from "../context/AuthContext";
 
 const NavLinkStyle = ({ isActive }) => {
   return {
     fontWeight: isActive ? "bold" : "normal",
     textDecoration: "none",
+    color: isActive ? "black" : "green",
   };
 };
 
@@ -19,6 +28,17 @@ const NavBar = styled(Box)({
 });
 
 export default function Navbar() {
+  const { LogoutUser } = useAuth;
+  // const student = localStorage.getItem("user");
+  const access = localStorage.getItem("accesstoken");
+  const navigate = useNavigate();
+
+  const HandleLogout = () => {
+    LogoutUser?.();
+    localStorage.clear();
+    navigate("/auth/login");
+  };
+
   return (
     <div className="navbar">
       <Container>
@@ -28,17 +48,66 @@ export default function Navbar() {
           </div>
           <Stack direction="row" spacing={3}>
             <NavLink to="/" style={NavLinkStyle}>
-              Home
+              <Typography
+                variant="p"
+                className="mysubtext"
+                sx={{ fontSize: "0.9em" }}
+              >
+                Home
+              </Typography>
             </NavLink>
-            <NavLink to="/login" style={NavLinkStyle}>
-              Login
+            <NavLink to="/auth/register" style={NavLinkStyle}>
+              <Typography
+                variant="p"
+                className="mysubtext"
+                sx={{ fontSize: "0.9em" }}
+              >
+                About
+              </Typography>
             </NavLink>
-            <NavLink to="/register" style={NavLinkStyle}>
-              Register
-            </NavLink>
-            <NavLink to="/register" style={NavLinkStyle}>
-              About
-            </NavLink>
+            {access ? (
+              <>
+                <NavLink to="/student/dashboard" style={NavLinkStyle}>
+                  <Typography
+                    variant="p"
+                    className="mysubtext"
+                    sx={{ fontSize: "0.9em" }}
+                  >
+                    dashboard
+                  </Typography>
+                </NavLink>
+                <Button variant="outlined" onClick={HandleLogout}>
+                  <Typography
+                    variant="p"
+                    className="mysubtext"
+                    sx={{ fontSize: "0.9em" }}
+                  >
+                    Log Out
+                  </Typography>
+                </Button>
+              </>
+            ) : (
+              <>
+                <NavLink to="/auth/login" style={NavLinkStyle}>
+                  <Typography
+                    variant="p"
+                    className="mysubtext"
+                    sx={{ fontSize: "0.9em" }}
+                  >
+                    Login
+                  </Typography>
+                </NavLink>
+                <NavLink to="/auth/register" style={NavLinkStyle}>
+                  <Typography
+                    variant="p"
+                    className="mysubtext"
+                    sx={{ fontSize: "0.9em" }}
+                  >
+                    Register
+                  </Typography>
+                </NavLink>
+              </>
+            )}
           </Stack>
         </NavBar>
       </Container>
