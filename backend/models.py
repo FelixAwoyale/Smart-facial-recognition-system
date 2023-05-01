@@ -1,4 +1,5 @@
 import os
+import datetime
 from sqlalchemy import Column, String, Integer, JSON
 from flask_sqlalchemy import SQLAlchemy
 # from mongoalchemy import MongoAlchemy,fields
@@ -6,9 +7,11 @@ import json
 from settings import database_name, database_password, database_user
 
 
-database_path = 'postgresql://{}:{}@{}/{}'.format(database_user, database_password,'localhost:5432', database_name)
+database_path = 'postgresql://{}:{}@{}/{}'.format(
+    database_user, database_password, 'localhost:5432', database_name)
 
 db = SQLAlchemy()
+
 
 def setup_db(app, database_path=database_path):
     # app.config["SQLALCHEMY_DATABASE_URI"] = database_path
@@ -20,7 +23,6 @@ def setup_db(app, database_path=database_path):
     with app.app_context():
         # create the database tables
         db.create_all()
-    
 
     # app.config["MONGOALCHEMY_CONNECTION_STRING"] = mongo_uri
     # app.config["MONGOALCHEMY_SERVER"] = 'localhost'
@@ -43,23 +45,22 @@ class Students(db.Model):
     password = Column(String, nullable=False)
     encodings = Column(JSON, nullable=True)
 
-    def __init__(self, firstname, lastname, email, matricno, level, password, encodings=None, id=None) :
+    def __init__(self, firstname, lastname, email, matricno, level, password, encodings=None, id=None):
         self.id = id
-        self.firstname=firstname
-        self.lastname=lastname
-        self.email =email
-        self.matricno=matricno
-        self.level=level
+        self.firstname = firstname
+        self.lastname = lastname
+        self.email = email
+        self.matricno = matricno
+        self.level = level
         self.password = password
         self.encodings = dict(encodings) if encodings else None
 
     # def insert(self):
     #     self.save(self)
-        
 
     # # def update(self):
     # #     db.session.()
-    
+
     # def delete(self):
     #     self.remove(self)
 
@@ -73,18 +74,17 @@ class Students(db.Model):
     def delete(self):
         db.session.delete(self)
         db.session.commit()
-    
-    
+
     def format(self):
-        return{
+        return {
             'id': self.id,
             'firstname': self.firstname,
-            'lastname':self.lastname,
-            'email':self.email,
-            'matricno':self.matricno,
-            'password':self.password,
-            'level':self.level,
-            'encodings':self.encodings
+            'lastname': self.lastname,
+            'email': self.email,
+            'matricno': self.matricno,
+            'password': self.password,
+            'level': self.level,
+            'encodings': self.encodings
         }
 
 
@@ -97,24 +97,58 @@ class Lecturer(db.Model):
     email = Column(String, nullable=False)
     password = Column(String, nullable=False)
 
-    def __init__(self, firstname, lastname, email, password, id=None) :
+    def __init__(self, firstname, lastname, email, password, id=None):
         self.id = id
-        self.firstname=firstname
-        self.lastname=lastname
-        self.email =email
+        self.firstname = firstname
+        self.lastname = lastname
+        self.email = email
         self.password = password
 
     def insert(self):
         db.session.add(self)
         db.session.commit()
-    
+
     def format(self):
-        return{
+        return {
             'id': self.id,
             'firstname': self.firstname,
-            'lastname':self.lastname,
-            'email':self.email,
-            'password':self.password,
-          
+            'lastname': self.lastname,
+            'email': self.email,
+            'password': self.password,
+
         }
 
+
+class Attendance(db.Model):
+    __tablename__ = 'attendance'
+    id = Column(Integer, primary_key=True)
+    student_id = Column(db.Integer, db.ForeignKey(
+        'students.id'), nullable=False)
+    date = Column(db.Date, nullable=False, default=datetime.date.today())
+    present = Column(db.Boolean, nullable=False, default=False)
+    session = Column(db.String(50), nullable=False)
+    lecturer_id = Column(db.Integer, db.ForeignKey(
+        'lecturer.id'), nullable=False)
+
+    def __init__(self, student_id,  present, session, lecturer_id, id=None, date=None,):
+        self.id = id
+        self.student_id = student_id
+        self.date = date
+        self.present = present
+        self.session = session,
+        self.lecturer_id = lecturer_id
+
+    def insert(self):
+        db.session.add(self)
+        db.session.commit()
+
+    def format(self):
+        return {
+            'id': self.id,
+            'student_id': self.student_id,
+            'date': self.date,
+            'present': self.present,
+            'session': self.session,
+            'lecturer_id': self.lecturer_id
+
+        }

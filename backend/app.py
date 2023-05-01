@@ -1,10 +1,19 @@
 from flask import Flask, request, abort, jsonify
-from models import Students, setup_db, Lecturer
+from models import Students, setup_db, Lecturer, Attendance
 from flask_cors import CORS
 from passlib.hash import pbkdf2_sha256
 import jwt
 from datetime import datetime, timedelta
-from recognition_functions import findEncodings
+from recognition_functions import findEncodings, face_distance
+import numpy as np
+import base64
+import cv2
+import face_recognition
+import os
+from datetime import datetime
+import pandas as pd
+import dlib
+
 
 def create_app(test_config=None):
     # create and configure the app
@@ -30,33 +39,30 @@ def create_app(test_config=None):
         # print(body)
         print(request)
 
-        new_firstname=body.get("firstname", None)
-        new_lastname=body.get("lastname", None)
-        new_email=body.get("email", None)
+        new_firstname = body.get("firstname", None)
+        new_lastname = body.get("lastname", None)
+        new_email = body.get("email", None)
         new_password = body.get("password", None)
         new_matricno = body.get("matricno", None)
         new_level = body.get("level", None)
 
-       
-        new_encodings ={}
-        
-
-
+        new_encodings = {}
 
         existing_user = Students.query.filter_by(email=new_email).first()
         if existing_user is not None:
             return jsonify(message="A user with this email already exists"), 409
-        
+
         hashed_password = pbkdf2_sha256.hash(new_password)
 
         try:
-            student = Students(firstname=new_firstname, lastname=new_lastname, email=new_email, matricno=new_matricno, level=new_level, password=hashed_password) 
+            student = Students(firstname=new_firstname, lastname=new_lastname, email=new_email,
+                               matricno=new_matricno, level=new_level, password=hashed_password)
             student.insert()
             # selection = Students.query.order_by(Students.id).all()
 
             return jsonify({
-                "success":True,
-                "created": Students.id,
+                "success": True,
+                "created": student.id,
                 "Total Students": len(Students.query.all())
             })
         except Exception as e:
@@ -65,142 +71,222 @@ def create_app(test_config=None):
 
     @app.route('/lecturer/register', methods=['POST'])
     def create_lecturer():
-         body=request.get_json()
-         new_firstname = body.get('firstname', None)
-         new_lastname = body.get('lastname', None)
-         new_email = body.get('email', None)
-         new_password = body.get('password', None)
+        body = request.get_json()
+        new_firstname = body.get('firstname', None)
+        new_lastname = body.get('lastname', None)
+        new_email = body.get('email', None)
+        new_password = body.get('password', None)
 
-         existing_lecturer = Lecturer.query.filter_by(email=new_email).first()
-         if existing_lecturer is not None:
+        existing_lecturer = Lecturer.query.filter_by(email=new_email).first()
+        if existing_lecturer is not None:
             return jsonify(message="A user with this email already exists"), 409
-         hashed_password = pbkdf2_sha256.hash(new_password)
+        hashed_password = pbkdf2_sha256.hash(new_password)
 
-         try:
-              lecturer = Lecturer(firstname=new_firstname, lastname=new_lastname, email=new_email, password=hashed_password)
-              lecturer.insert()
+        try:
+            lecturer = Lecturer(firstname=new_firstname, lastname=new_lastname,
+                                email=new_email, password=hashed_password)
+            lecturer.insert()
 
-              return jsonify({"success":True,
-                "created": Lecturer.id,
-                "Total Students": len(Lecturer.query.all())})
-         except Exception as e:
-              print(e)
-              abort(422)
-        
-
+            return jsonify({"success": True,
+                            "created": lecturer.id,
+                            "Total Students": len(Lecturer.query.all())})
+        except Exception as e:
+            print(e)
+            abort(422)
 
     @app.route('/student/login', methods=['POST'])
     def Studentlogin():
-         body = request.get_json()
+        body = request.get_json()
 
-         new_matric = body.get('matricno')
-         new_password = body.get('password')
+        new_matric = body.get('matricno')
+        new_password = body.get('password')
 
-         student = Students.query.filter_by(matricno=new_matric).first()
+        student = Students.query.filter_by(matricno=new_matric).first()
 
-         if student is None:
-              return jsonify(message="User does not exist or email is invalid"), 401
-         
-         if pbkdf2_sha256.verify(new_password, student.password):
+        if student is None:
+            return jsonify(message="User does not exist or email is invalid"), 401
+
+        if pbkdf2_sha256.verify(new_password, student.password):
             payload = {
-              'matricno': new_matric,
-              'exp': datetime.utcnow() + timedelta(minutes=30)  # token expires in 30 minutes
-          }
+                'matricno': new_matric,
+                'exp': datetime.utcnow() + timedelta(minutes=30)  # token expires in 30 minutes
+            }
             token = jwt.encode(payload, 'secret_key', algorithm='HS256')
             return jsonify({
-              'message': 'success',
-              'id':student.id,
-              'token': token
-                })
-              
-         else:
-              return jsonify(message="Invalid email or password"), 401
-         
+                'message': 'success',
+                'id': student.id,
+                'token': token
+            })
+
+        else:
+            return jsonify(message="Invalid email or password"), 401
+
     @app.route('/lecturer/login', methods=['POST'])
     def Lecturerlogin():
-         body = request.get_json()
+        body = request.get_json()
 
-         new_email = body.get('email')
-         new_password = body.get('password')
+        new_email = body.get('email')
+        new_password = body.get('password')
 
-         lecturer = Lecturer.query.filter_by(email=new_email).first()
+        lecturer = Lecturer.query.filter_by(email=new_email).first()
 
-         if lecturer is None:
-              return jsonify(message="User does not exist or email is invalid"), 401
-         
-         if pbkdf2_sha256.verify(new_password, lecturer.password):
+        if lecturer is None:
+            return jsonify(message="User does not exist or email is invalid"), 401
+
+        if pbkdf2_sha256.verify(new_password, lecturer.password):
             payload = {
-              'email': new_email,
-              'id':lecturer.id,
-              'exp': datetime.utcnow() + timedelta(minutes=30)  # token expires in 30 minutes
-          }
+                'email': new_email,
+                'id': lecturer.id,
+                'exp': datetime.utcnow() + timedelta(minutes=30)  # token expires in 30 minutes
+            }
             token = jwt.encode(payload, 'secret_key', algorithm='HS256')
             return jsonify({
-              'message': 'success',
-              'token': token
-                })
-              
-         else:
-              return jsonify(message="Invalid email or password"), 401
-         
+                'message': 'success',
+                'token': token
+            })
 
-         
+        else:
+            return jsonify(message="Invalid email or password"), 401
+
     @app.route('/student/create_encodings/<int:id>', methods=['PATCH'])
     def create_encodings(id):
-         student =Students.query.filter_by(id=id).first()
+        data_url = request.json['dataUrl']
+        header, encoded = data_url.split(",", 1)
+        image_data = base64.b64decode(encoded)
+        nparr = np.frombuffer(image_data, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        student = Students.query.filter_by(id=id).first()
+        #  alpha = 5
+        #  beta = 20
+        #  processed_img = cv2.addWeighted(img, alpha, np.zeros(img.shape, img.dtype), 0,beta)
+        #  print(processed_img)
+        #  file = request.files['file']
+        #  file_content = file.read()
 
-         file = request.files['file']
-         file_content = file.read()
-
-
-         if student is None:
+        if student is None:
             return jsonify(message="Student not found"), 404
-         
-         if 'encodings' not in request.json:
-             return jsonify(message="Request body must contain encodings"), 400
-         
-         new_encodings = findEncodings(file_content)
-         
 
-         try: 
-              student = Students(encodings=new_encodings)
-              student.update()
-              return jsonify(message="Students encoding updated sucessfully"), 200
-         except Exception as e:
-              print(e)
-              abort(422)
-         
-        
-    
-        
+        #  if 'encodings' not in request.json:
+        #      return jsonify(message="Request body must contain encodings"), 400
 
+        new_encodings = findEncodings([img])
+        if new_encodings is None:
+            return jsonify(message="No face detected"), 400
+        new_encodings = [e.tolist() for e in new_encodings]
 
+        try:
+            student.encodings = new_encodings
+            student.update()
+            return jsonify(message="Students encoding updated sucessfully"), 200
+        except Exception as e:
+            print(e)
+            abort(422)
 
+    @app.route('/markattendance', methods=['POST'])
+    def mark_attendance():
+        # Load the encodings and names from the database
+        students = Students.query.all()
+        encodings = [np.array(student.encodings)
+                     for student in students if student.encodings is not None]
+        print(encodings)
+        ids = [student.id for student in students if student.encodings is not None]
+        body = request.get_json()
+
+        new_lecturer = body.get('lecturer')
+        new_session = body.get('session')
+
+        stream = cv2.VideoCapture(1)
+
+    # Process the video stream until it is closed
+        while True:
+            # Read a frame from the video stream
+            ret, frame = stream.read()
+
+            # If there was an error reading the frame, exit the loop
+            if not ret:
+                break
+
+            # Find the face locations and encodings in the frame
+            imgS = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            faceCurFrame = face_recognition.face_locations(imgS)
+            encodesCurFrame = face_recognition.face_encodings(
+                imgS, faceCurFrame)
+
+            for encodeFace, faceLoc in zip(encodesCurFrame, faceCurFrame):
+                # matches = face_recognition.compare_faces(
+                #     encodings, encodeFace)
+                # faceDis = face_recognition.face_distance(
+                #     encodings, encodeFace)
+                print(encodeFace)
+                matches = face_recognition.compare_faces(
+                    encodings, encodeFace)
+                faceDis = face_recognition.face_distance(
+                    encodings, encodeFace)
+                print(faceDis)
+
+                matchIndex = np.argmin(faceDis)
+
+            # Recognize the faces and mark attendance
+
+                # If a match is found, mark attendance for the corresponding student
+                if matchIndex is not None:
+                    student = students[matchIndex]
+                    new_id = ids[matchIndex]
+                    existing_attendance = Attendance.query.filter_by(
+                        student_id=student.id, session=new_session).first()
+                    if not existing_attendance:
+                        attendance = Attendance(
+                            student_id=new_id, lecturer_id=new_lecturer, present=True, session=new_session)
+                        attendance.insert()
+
+            # Wait for a key press to exit the loop (or use a timer to exit automatically)
+            cv2.imshow('Video Stream', frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+        # Release the video stream and close the window
+        stream.release()
+        cv2.destroyAllWindows()
+
+        return jsonify({
+            'message': 'success'
+        })
+
+    @app.route('/student/get', methods=['GET'])
+    def get_students():
+        student = Students.query.all()
+
+        formatted_students = {
+            students.id: students.matricno for students in student}
+
+        return jsonify({
+            'student': formatted_students,
+            'success': True
+        })
 
     @app.errorhandler(400)
     def bad_request(error):
         return jsonify({
-                "success": False,
-                "error": 400,
-                "message": "Bad request(Wrong Input)" + str(error)
-            }), 400
+            "success": False,
+            "error": 400,
+            "message": "Bad request(Wrong Input)" + str(error)
+        }), 400
 
     @app.errorhandler(404)
     def not_found(error):
-            return jsonify({
-                "success": False,
-                "error": 404,
-                "message": 'Not found'
-            }), 404
+        return jsonify({
+            "success": False,
+            "error": 404,
+            "message": 'Not found'
+        }), 404
 
     @app.errorhandler(422)
     def unprocessable(error):
-            return jsonify({
-                "success": False,
-                "error": 422,
-                "message": 'Unable to Process your request' + str(error)
-            }), 422
-    
+        return jsonify({
+            "success": False,
+            "error": 422,
+            "message": 'Unable to Process your request' + str(error)
+        }), 422
+
     return app
-
-
