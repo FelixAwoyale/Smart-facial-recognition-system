@@ -7,6 +7,7 @@ import {
   Container,
   Card,
   Stack,
+  Modal,
 } from "@mui/material";
 import React, { useState, useRef } from "react";
 import axios from "axios";
@@ -14,12 +15,43 @@ import axios from "axios";
 import StatsStudents from "../components/StatsStudents";
 import StudentProfile from "../components/StudentProfile";
 import { Icon } from "@iconify-icon/react";
+import { useAuth } from "../context/AuthContext";
+
+const style = {
+  position: "absolute",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%)",
+  width: 500,
+  bgcolor: "white",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "center",
+  alignItems: "center",
+  boxShadow: 24,
+  p: 4,
+  borderRadius: "20px",
+};
 
 export default function HomeDashboard() {
   const [stream, setStream] = useState(null);
+
   const videoRef = useRef(null);
   const [Error, setError] = useState("");
   const [initialize, setInitialize] = useState();
+  const { UserState } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [popUp, setPopup] = useState(false);
+
+  const handleOpen = () => {
+    setOpen(true);
+  };
+
+  // const Token = localStorage.getItem("accesstoken");
+
+  // const jwt = require("jsonwebtoken");
+
+  // const decodedToken = jwt.decode(authState.token);
 
   const startCapture = async () => {
     await setInitialize(true);
@@ -34,6 +66,11 @@ export default function HomeDashboard() {
     }
   };
 
+  const handleClose = () => {
+    setOpen(false);
+    startCapture();
+  };
+
   const stopCapture = () => {
     setInitialize(false);
     if (stream) {
@@ -41,8 +78,14 @@ export default function HomeDashboard() {
       setStream(null);
     }
   };
+  const handlepopUpclose = () => {
+    setPopup(false);
+    stopCapture();
+  };
 
   const captureImage = async () => {
+    const userId = localStorage.getItem("user");
+
     try {
       const video = videoRef.current;
       const canvas = document.createElement("canvas");
@@ -52,9 +95,12 @@ export default function HomeDashboard() {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const dataUrl = canvas.toDataURL("image/jpeg");
       const response = await axios.patch(
-        "http://127.0.0.1:5000/student/create_encodings/4",
+        `http://127.0.0.1:5000/student/create_encodings/${userId}`,
         { dataUrl }
       );
+      if (response.status === 200) {
+        setPopup(true);
+      }
       // const encodings = await response.json();
       // console.log(encodings);
       setError("");
@@ -69,7 +115,7 @@ export default function HomeDashboard() {
     <div style={{ marginTop: "7em" }}>
       <Container>
         <Typography variant="h3" sx={{ marginBottom: "2em" }}>
-          Welcome, user
+          Welcome, {UserState.name}
         </Typography>
         <Box sx={{ marginBottom: "4em" }}>
           <Grid container>
@@ -115,7 +161,7 @@ export default function HomeDashboard() {
                   <Box sx={{ mt: "15%", mb: "5%" }}>
                     <Stack direction={"row"} spacing={3}>
                       <Button
-                        onClick={startCapture}
+                        onClick={handleOpen}
                         variant="contained"
                         color="secondary"
                         sx={{ color: "white" }}
@@ -136,6 +182,13 @@ export default function HomeDashboard() {
                   </Button>
                 </Grid>
                 <Grid item md={6}>
+                  {Error === "" ? (
+                    <>
+                      <div />
+                    </>
+                  ) : (
+                    <Alert severity="error">{Error}</Alert>
+                  )}
                   {initialize ? (
                     <>
                       <Box sx={{ borderRadius: "15%" }}>
@@ -153,18 +206,52 @@ export default function HomeDashboard() {
               </Grid>
             </Box>
           </Box>
+
+          <Modal open={open} onClose={handleClose}>
+            <Box sx={style}>
+              {/* <Box icon="et:caution" /> */}
+              <Box sx={{ color: "#6BBD74", marginBottom: "5%" }}>
+                <Icon icon="et:caution" width="10em" />
+                <Box sx={{ textAlign: "center", textTransform: "uppercase" }}>
+                  <Typography variant="h6">note</Typography>
+                </Box>
+              </Box>
+              <Box sx={{ textAlign: "center", mb: "6%" }}>
+                <Typography>
+                  {" "}
+                  Please, Make sure you're using a device with high qaulity
+                  camera and also stay in an environment with good lightning
+                </Typography>
+              </Box>
+
+              <Button
+                variant="contained"
+                color="secondary"
+                sx={{ color: "white" }}
+                onClick={handleClose}
+              >
+                I Understand
+              </Button>
+            </Box>
+          </Modal>
+          <Modal open={popUp} onClose={handlepopUpclose}>
+            <Box sx={style}>
+              <Box sx={{ color: "#6BBD74", marginBottom: "5%" }}>
+                <Icon icon="clarity:success-standard-line" width="10em" />
+                <Box sx={{ textAlign: "center", textTransform: "uppercase" }}>
+                  <Typography variant="h6">Success</Typography>
+                </Box>
+              </Box>
+              <Button variant="contained" onClick={handlepopUpclose}>
+                Done
+              </Button>
+            </Box>
+          </Modal>
           {/* <TextField type="file" /> */}
           {/* <video ref={videoRef} autoPlay />
         <canvas ref={canvasRef} style={{ display: "none" }} />
         <Button onClick={startCapture}>Capture Image</Button>
         <Button onClick={stopCamera}> Stop</Button> */}
-          {Error === "" ? (
-            <>
-              <div />
-            </>
-          ) : (
-            <Alert severity="error">{Error}</Alert>
-          )}
         </Box>
       </Container>
     </div>
