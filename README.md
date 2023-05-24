@@ -1,2 +1,2 @@
 # Smart-facial-recognition-system
-using, python, dlib, opencv and mongo db
+using, python, dlib, opencv and postgre sql
