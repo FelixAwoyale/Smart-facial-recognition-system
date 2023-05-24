@@ -1,10 +1,13 @@
 import os
 import datetime
+from datetime import date
 from sqlalchemy import Column, String, Integer, JSON
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import relationship
 # from mongoalchemy import MongoAlchemy,fields
 import json
 from settings import database_name, database_password, database_user
+from flask_migrate import Migrate
 
 
 database_path = 'postgresql://{}:{}@{}/{}'.format(
@@ -20,6 +23,8 @@ def setup_db(app, database_path=database_path):
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db.app = app
     db.init_app(app)
+    # Initialize Flask-Migrate
+    migrate = Migrate(app, db)
     with app.app_context():
         # create the database tables
         db.create_all()
@@ -96,13 +101,15 @@ class Lecturer(db.Model):
     lastname = Column(String, nullable=False)
     email = Column(String, nullable=False)
     password = Column(String, nullable=False)
+    department = Column(String, nullable=True)
 
-    def __init__(self, firstname, lastname, email, password, id=None):
+    def __init__(self, firstname, lastname, email, password, id=None, department=None):
         self.id = id
         self.firstname = firstname
         self.lastname = lastname
         self.email = email
         self.password = password
+        self.department = department
 
     def insert(self):
         db.session.add(self)
@@ -115,8 +122,16 @@ class Lecturer(db.Model):
             'lastname': self.lastname,
             'email': self.email,
             'password': self.password,
+            'department': self.department
 
         }
+
+
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, date):
+            return obj.isoformat()
+        return super().default(obj)
 
 
 class Attendance(db.Model):
@@ -124,19 +139,24 @@ class Attendance(db.Model):
     id = Column(Integer, primary_key=True)
     student_id = Column(db.Integer, db.ForeignKey(
         'students.id'), nullable=False)
-    date = Column(db.Date, nullable=False, default=datetime.date.today())
+    student = relationship('Students', backref='attendance')
+    date = Column(db.Date, nullable=False, default=datetime.datetime.now())
     present = Column(db.Boolean, nullable=False, default=False)
     session = Column(db.String(50), nullable=False)
     lecturer_id = Column(db.Integer, db.ForeignKey(
         'lecturer.id'), nullable=False)
+    student_name = Column(db.String(100), nullable=False)
+    matric_no = Column(db.String(50), nullable=False)
 
-    def __init__(self, student_id,  present, session, lecturer_id, id=None, date=None,):
+    def __init__(self, student_id,  present, session, student_name, lecturer_id, matric_no, id=None, date=None,):
         self.id = id
         self.student_id = student_id
         self.date = date
         self.present = present
         self.session = session,
         self.lecturer_id = lecturer_id
+        self.student_name = student_name
+        self.matric_no = matric_no
 
     def insert(self):
         db.session.add(self)

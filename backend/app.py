@@ -13,12 +13,16 @@ import os
 from datetime import datetime
 import pandas as pd
 import dlib
+from flask_migrate import Migrate
+
+# Initialize Flask-Migrate
 
 
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__)
     setup_db(app)
+
     CORS(app)
     with app.app_context():
         app.run()
@@ -142,7 +146,8 @@ def create_app(test_config=None):
             token = jwt.encode(payload, 'secret_key', algorithm='HS256')
             return jsonify({
                 'message': 'success',
-                'token': token
+                'token': token,
+                'id': lecturer.id
             })
 
         else:
@@ -189,8 +194,12 @@ def create_app(test_config=None):
         encodings = [np.array(student.encodings)
                      for student in students if student.encodings is not None]
         print(encodings)
+
         ids = [student.id for student in students if student.encodings is not None]
+        encoding_to_info = {tuple(encoding): {'id': student_id}
+                            for encoding, student_id in zip(encodings, ids)}
         body = request.get_json()
+        print(ids)
 
         new_lecturer = body.get('lecturer')
         new_session = body.get('session')
@@ -230,14 +239,25 @@ def create_app(test_config=None):
             # Recognize the faces and mark attendance
 
                 # If a match is found, mark attendance for the corresponding student
-                if matchIndex is not None:
-                    student = students[matchIndex]
-                    new_id = ids[matchIndex]
+                # if matchIndex is not None:
+                #     student = students[matchIndex]
+                #     new_id = ids[matchIndex]
+                #     existing_attendance = Attendance.query.filter_by(
+                #         student_id=student.id, session=new_session).first()
+                #     if not existing_attendance:
+                #         attendance = Attendance(
+                #             student_id=new_id, lecturer_id=new_lecturer, present=True, session=new_session)
+                #         attendance.insert()
+                if matches[matchIndex]:
+                    encoding = tuple(encodings[matchIndex])
+                    student_info = encoding_to_info[encoding]
+                    student_id = student_info['id']
+                    # student_name = student_info['name']
                     existing_attendance = Attendance.query.filter_by(
-                        student_id=student.id, session=new_session).first()
+                        student_id=student_id, session=new_session).first()
                     if not existing_attendance:
                         attendance = Attendance(
-                            student_id=new_id, lecturer_id=new_lecturer, present=True, session=new_session)
+                            student_id=student_id, lecturer_id=new_lecturer, present=True, session=new_session)
                         attendance.insert()
 
             # Wait for a key press to exit the loop (or use a timer to exit automatically)
@@ -253,17 +273,117 @@ def create_app(test_config=None):
             'message': 'success'
         })
 
+    @app.route('/attendance/<int:lecturer_id>', methods=['GET'])
+    def get_attendance(lecturer_id):
+
+        # Get the query parameters for session and time
+        session = request.args.get('session')
+        time = request.args.get('time')
+
+    # Query the database for attendance records based on the lecturer ID, session, and time
+        attendance_records = Attendance.query.filter_by(
+            lecturer_id=lecturer_id).all()
+        # Query the database for attendance records based on the lecturer ID
+
+        # Check if any records were found
+        if attendance_records:
+            # Create a dictionary to store attendance records by session
+            attendance_by_session_time = {}
+
+            # Iterate over the attendance records
+            for attendance in attendance_records:
+                # Get the session for the attendance record
+                session = attendance.session
+                time = attendance.date.isoformat()
+
+                # Check if the session exists in the dictionary
+                # Check if the session and time exist in the dictionary
+                if session in attendance_by_session_time:
+                    if time in attendance_by_session_time[session]:
+                        # Append the attendance record to the existing session and time key
+                        attendance_by_session_time[session][time].append(
+                            attendance.format())
+                    else:
+                        # Create a new time key and assign the attendance record to it
+                        attendance_by_session_time[session][time] = [
+                            attendance.format()]
+                else:
+                    # Create a new session key and assign the attendance record to it
+                    attendance_by_session_time[session] = {
+                        time: [attendance.format()]}
+
+            # Return the attendance by session and time dictionary as JSON
+            return jsonify({
+                'attendance': attendance_by_session_time
+            })
+        else:
+            # Return a message indicating no attendance records were found
+            return jsonify({
+                'message': 'No attendance records found for the lecturer, session, and time'
+            })
+
     @app.route('/student/get', methods=['GET'])
     def get_students():
         student = Students.query.all()
 
-        formatted_students = {
-            students.id: students.matricno for students in student}
+        formatted_students = [{'matricno': s.matricno,
+                               'lastname': s.lastname,
+                               'email': s.email,
+                               'level': s.level,
+                               'encodings': s.encodings,
+                               'firstname': s.firstname} for s in student]
 
         return jsonify({
             'student': formatted_students,
-            'success': True
+
         })
+
+    @app.route('/lecturer/get', methods=['GET'])
+    def get_lecturer():
+        lecturer = Lecturer.query.all()
+
+        formatted_lecturer = [{'firstname': s.firstname,
+                               'lastname': s.lastname,
+                               'email': s.email,
+                               'department': s.department
+                               } for s in lecturer]
+
+        return jsonify({
+            'lecturer': formatted_lecturer,
+
+        })
+
+    @app.route('/student/get/<int:id>', methods=['GET'])
+    def get_studentsbyId(id):
+        student = Students.query.filter_by(id=id).first()
+        if student is None:
+            return jsonify({'error': 'Student not found'})
+        formatted_students = {'matricno': student.matricno,
+                              'lastname': student.lastname,
+                              'email': student.email,
+                              'level': student.level,
+                              'encodings': student.encodings,
+                              'firstname': student.firstname}
+
+        return jsonify(
+            formatted_students,
+
+        )
+
+    @app.route('/lecturer/get/<int:id>', methods=['GET'])
+    def get_lecturerbyId(id):
+        lecturer = Lecturer.query.filter_by(id=id).first()
+        if lecturer is None:
+            return jsonify({'error': 'Lecturer not found'})
+        formatted_lecturer = {'firstname': lecturer.firstname,
+                              'lastname': lecturer.lastname,
+                              'email': lecturer.email,
+                              'department': lecturer.department}
+
+        return jsonify(
+            formatted_lecturer,
+
+        )
 
     @app.errorhandler(400)
     def bad_request(error):
