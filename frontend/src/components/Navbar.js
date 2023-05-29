@@ -31,6 +31,7 @@ export default function Navbar() {
   const { LogoutUser } = useAuth;
   // const student = localStorage.getItem("user");
   const access = localStorage.getItem("accesstoken");
+  const accType = localStorage.getItem("acc");
   const navigate = useNavigate();
 
   const HandleLogout = () => {
@@ -67,15 +68,28 @@ export default function Navbar() {
             </NavLink>
             {access ? (
               <>
-                <NavLink to="/student/dashboard" style={NavLinkStyle}>
-                  <Typography
-                    variant="p"
-                    className="mysubtext"
-                    sx={{ fontSize: "0.9em" }}
-                  >
-                    dashboard
-                  </Typography>
-                </NavLink>
+                {accType === "student" ? (
+                  <NavLink to="/student/dashboard" style={NavLinkStyle}>
+                    <Typography
+                      variant="p"
+                      className="mysubtext"
+                      sx={{ fontSize: "0.9em" }}
+                    >
+                      dashboard
+                    </Typography>
+                  </NavLink>
+                ) : (
+                  <NavLink to="/lecturer/dashboard" style={NavLinkStyle}>
+                    <Typography
+                      variant="p"
+                      className="mysubtext"
+                      sx={{ fontSize: "0.9em" }}
+                    >
+                      dashboard
+                    </Typography>
+                  </NavLink>
+                )}
+
                 <Button variant="outlined" onClick={HandleLogout}>
                   <Typography
                     variant="p"
