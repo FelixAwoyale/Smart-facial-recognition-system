@@ -12,6 +12,8 @@ import React, { useState } from "react";
 import StatsLecturer from "../components/StatsLecturer";
 import LecturerProfile from "../components/LecturerProfile";
 import TakeAttendance from "../components/TakeAttendanceForm";
+import RecentAttendanceTable from "../components/RecentAttendanceTable";
+import AttendanceTable from "../components/AttendanceTable";
 // import { Icon } from "@iconify-icon/react";
 
 export default function HomeDashboard() {
@@ -83,11 +85,16 @@ export default function HomeDashboard() {
                   <Typography variant="h6">Recent Attendance</Typography>
 
                   <Typography>View recently taken attendance</Typography>
+                  <Box>
+                    <RecentAttendanceTable />
+                  </Box>
                 </Grid>
               </Grid>
             </Box>
           </Box>
         </Box>
+
+        <AttendanceTable />
       </Container>
     </div>
   );
