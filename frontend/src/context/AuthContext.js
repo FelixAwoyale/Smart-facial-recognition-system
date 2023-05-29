@@ -13,6 +13,8 @@ export function AuthProvider({ children }) {
     token: null,
   });
 
+  const [AttendanceID, setAttendanceID] = useState("");
+
   const [UserState, setUserState] = useState({
     name: "",
     email: "",
@@ -139,6 +141,8 @@ export function AuthProvider({ children }) {
     LecturerLogin,
     LecturerRegister,
     LecturerState,
+    AttendanceID,
+    setAttendanceID,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
