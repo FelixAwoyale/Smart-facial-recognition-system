@@ -15,6 +15,8 @@ export function AuthProvider({ children }) {
 
   const [AttendanceID, setAttendanceID] = useState("");
 
+  
+
   const [UserState, setUserState] = useState({
     name: "",
     email: "",

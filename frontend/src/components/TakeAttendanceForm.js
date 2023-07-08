@@ -42,7 +42,7 @@ export default function TakeAttenanceForm() {
             <Typography>Course Name</Typography>
             <TextField
               placeholder="Course Name"
-              defaultValue={formValues.firstname}
+              defaultValue={formValues.courseName}
               onChange={handleUpdates}
               fullWidth
               name="courseName"
