@@ -6,12 +6,12 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship
 # from mongoalchemy import MongoAlchemy,fields
 import json
-from settings import database_name, database_password, database_user
+from settings import database_path
 from flask_migrate import Migrate
 
 
-database_path = 'postgresql://{}:{}@{}/{}'.format(
-    database_user, database_password, 'localhost:5432', database_name)
+# database_path = 'postgresql://{}:{}@{}/{}'.format(
+#     database_user, database_password, 'localhost:5432', database_name)
 
 db = SQLAlchemy()
 
